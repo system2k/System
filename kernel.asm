@@ -67,7 +67,7 @@ InitializeGraphics:
 	mov [VideoMemPtr], ebx
 	
 	; enter the mode
-	mov ax, 0x4f02 ; vesa mode
+	mov ax, 0x4F02 ; vesa mode
 	mov bx, 0x0112 ; 640x480x24
 	int 0x10
 	
@@ -76,7 +76,7 @@ enterProtMode:
 	cli
 	lgdt [gdt_descriptor]
 	mov eax, cr0
-	or eax, 0x1
+	or eax, 0b00000001
 	mov cr0, eax
 	jmp CODE_SEG:BeginKernel32
 	hlt
@@ -90,7 +90,7 @@ gdt_null:
 	dd 0x0
 	
 gdt_code:
-	dw 0xffff
+	dw 0xFFFF
 	dw 0x0
 	db 0x0
 	db 10011010b
@@ -98,7 +98,7 @@ gdt_code:
 	db 0x0
 	
 gdt_data:
-	dw 0xffff
+	dw 0xFFFF
 	dw 0x0
 	db 0x0
 	db 10010010b
@@ -157,233 +157,40 @@ BeginKernel32:
 	mov al, 0x00
 	out 0xA1, al
 
-
-	; timer interrupt
-	mov eax, addr_irq0
+%macro InterruptDesc 2 ; %1: function, %2: offset
+	mov eax, %1
 	and eax, 0xFFFF
-	mov [0 + IDT_table + 32 * 8], ax ;; offset_lowerbits
+	mov [0 + IDT_table + %2 * 8], ax ;; offset_lowerbits
 	mov eax, 0x08
-	mov [2 + IDT_table + 32 * 8], ax ;; selector
+	mov [2 + IDT_table + %2 * 8], ax ;; selector
 	mov eax, 0
-	mov [4 + IDT_table + 32 * 8], al ;; zero
+	mov [4 + IDT_table + %2 * 8], al ;; zero
 	mov eax, 0x8E
-	mov [5 + IDT_table + 32 * 8], al ;; type_attr
-	mov eax, addr_irq0
+	mov [5 + IDT_table + %2 * 8], al ;; type_attr
+	mov eax, %1
 	and eax, 0xFFFF0000
 	shr eax, 16
-	mov [6 + IDT_table + 32 * 8], ax ;; offset_higherbits
+	mov [6 + IDT_table + %2 * 8], ax ;; offset_higherbits
+%endmacro
 
-	mov eax, addr_irq1
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 33 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 33 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 33 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 33 * 8], al ;; type_attr
-	mov eax, addr_irq1
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 33 * 8], ax ;; offset_higherbits
+	InterruptDesc addr_irq0, 32 ; timer interrupt
+	InterruptDesc addr_irq1, 33 ; keyboard
+	InterruptDesc addr_irq2, 34
+	InterruptDesc addr_irq3, 35
+	InterruptDesc addr_irq4, 36
+	InterruptDesc addr_irq5, 37
+	InterruptDesc addr_irq6, 38
+	InterruptDesc addr_irq7, 39
+	InterruptDesc addr_irq8, 40
+	InterruptDesc addr_irq9, 41
+	InterruptDesc addr_irq10, 42
+	InterruptDesc addr_irq11, 43
+	InterruptDesc addr_irq12, 44 ; ps/2
+	InterruptDesc addr_irq13, 45
+	InterruptDesc addr_irq14, 46
+	InterruptDesc addr_irq15, 47
 
-	mov eax, addr_irq2
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 34 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 34 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 34 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 34 * 8], al ;; type_attr
-	mov eax, addr_irq2
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 34 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq3
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 35 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 35 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 35 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 35 * 8], al ;; type_attr
-	mov eax, addr_irq3
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 35 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq4
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 36 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 36 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 36 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 36 * 8], al ;; type_attr
-	mov eax, addr_irq4
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 36 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq5
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 37 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 37 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 37 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 37 * 8], al ;; type_attr
-	mov eax, addr_irq5
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 37 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq6
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 38 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 38 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 38 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 38 * 8], al ;; type_attr
-	mov eax, addr_irq6
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 38 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq7
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 39 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 39 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 39 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 39 * 8], al ;; type_attr
-	mov eax, addr_irq7
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 39 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq8
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 40 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 40 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 40 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 40 * 8], al ;; type_attr
-	mov eax, addr_irq8
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 40 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq9
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 41 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 41 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 41 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 41 * 8], al ;; type_attr
-	mov eax, addr_irq9
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 41 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq10
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 42 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 42 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 42 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 42 * 8], al ;; type_attr
-	mov eax, addr_irq10
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 42 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq11
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 43 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 43 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 43 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 43 * 8], al ;; type_attr
-	mov eax, addr_irq11
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 43 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq12
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 44 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 44 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 44 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 44 * 8], al ;; type_attr
-	mov eax, addr_irq12
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 44 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq13
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 45 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 45 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 45 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 45 * 8], al ;; type_attr
-	mov eax, addr_irq13
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 45 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq14
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 46 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 46 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 46 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 46 * 8], al ;; type_attr
-	mov eax, addr_irq14
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 46 * 8], ax ;; offset_higherbits
-
-	mov eax, addr_irq15
-	and eax, 0xFFFF
-	mov [0 + IDT_table + 47 * 8], ax ;; offset_lowerbits
-	mov eax, 0x08
-	mov [2 + IDT_table + 47 * 8], ax ;; selector
-	mov eax, 0
-	mov [4 + IDT_table + 47 * 8], al ;; zero
-	mov eax, 0x8E
-	mov [5 + IDT_table + 47 * 8], al ;; type_attr
-	mov eax, addr_irq15
-	and eax, 0xFFFF0000
-	shr eax, 16
-	mov [6 + IDT_table + 47 * 8], ax ;; offset_higherbits
-
-jmp beginIDT
+	jmp beginIDT
 
 ; ps/2 mouse packet data
 tempIrq12AL: db 0x00
