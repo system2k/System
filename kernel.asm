@@ -431,48 +431,90 @@ beginIDT:
 	lidt [eax]
 	sti
 
-	;;; Memory locations
-	;;; 7000000: kernel read/write data
-	;;; 8000000: kernel variable initialization space
-	;;; 9000000: kernel readonly data
-	;;; 8500000: kernel event buffer
-
-
-	; transfer kernel data to another location
-	mov edx, codeDataSection
-	mov ecx, 7000000
-	mov ebx, 0
-moveLoop1:
-	mov al, [edx]
-	mov [ecx], al
-	inc ebx
-	inc edx
-	inc ecx
-	cmp ebx, codeReadonlyData - codeDataSection
-	jl moveLoop1
-	
-	mov edx, codeReadonlyData
-	mov ecx, 9000000
-	mov ebx, 0
-moveLoop2:
-	mov al, [edx]
-	mov [ecx], al
-	inc ebx
-	inc edx
-	inc ecx
-	cmp ebx, kernelBytecode - codeReadonlyData
-	jl moveLoop2
-
-
 	jmp BeginKernel
 	
+
+; runtime relocation
+processKernelReloc:
+	mov eax, codeRelocationData
+kernRelocLoop:
+	mov bl, [eax]
+	add eax, 1
+	cmp bl, 1 ; data
+	je kreloc_data
+	cmp bl, 2 ; rdata
+	je kreloc_rdata
+	cmp bl, 3 ; bss
+	je kreloc_bss
+	cmp bl, 4 ; glob
+	je kreloc_glob
+	cmp bl, 5 ; bssSize
+	je kreloc_bssSize
+	cmp bl, 6 ; globVarSize
+	je kreloc_globVarSize
+	jmp kernRelocStop
+kreloc_data:
+	mov ecx, [eax]
+	add ecx, kernelBytecodeStart
+	add ecx, 5
+	mov edx, ecx
+	mov ecx, [ecx]
+	add ecx, codeDataSection
+	mov [edx], ecx
+	add eax, 4
+	jmp kernRelocLoop
+kreloc_rdata:
+	mov ecx, [eax]
+	add ecx, kernelBytecodeStart
+	add ecx, 5
+	mov edx, ecx
+	mov ecx, [ecx]
+	add ecx, codeReadonlyData
+	mov [edx], ecx
+	add eax, 4
+	jmp kernRelocLoop
+kreloc_bss:
+	mov ecx, [eax]
+	add ecx, kernelBytecodeStart
+	add ecx, 5
+	mov edx, ecx
+	mov ecx, [ecx]
+	add ecx, 7000000
+	mov [edx], ecx
+	add eax, 4
+	jmp kernRelocLoop
+kreloc_glob:
+	mov ecx, [eax]
+	add ecx, kernelBytecodeStart
+	add ecx, 5
+	mov edx, ecx
+	mov ecx, [ecx]
+	add ecx, 8000000
+	add eax, 4
+	mov ebx, [eax]
+	add ecx, ebx
+	mov [edx], ecx
+	add eax, 4
+	jmp kernRelocLoop
+kreloc_bssSize:
+	add eax, 4
+	jmp kernRelocLoop
+kreloc_globVarSize:
+	add eax, 4
+	jmp kernRelocLoop
+kernRelocStop:
+	ret
+
 ;;;;;;;;;;;;;;;; Kernel Data ;;;;;;;;;;;;;;;;
 
+codeRelocationData:
+	incbin "./build/reloc.bin"
 codeDataSection:
 	incbin "./build/exec_data.bin"
 codeReadonlyData:
 	incbin "./build/exec_rdata.bin"
 kernelBytecode:
+	call processKernelReloc
 	mov eax, [VideoMemPtr]
 	push KernelYieldEvent
 	push eax
