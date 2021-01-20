@@ -432,7 +432,24 @@ beginIDT:
 	sti
 
 	jmp BeginKernel
-	
+
+reloc_memBase: dd 0x00100000
+reloc_memBss: dd 0x00000000
+reloc_memGlobVar: dd 0x00000000
+
+; Initialize memory region with zeros
+; ebx: starting addr
+; ecx: buffer size
+memRegion_init:
+	mov edi, ebx
+	mov esi, ebx
+	add esi, ecx
+memRegInitLoop:
+	mov byte [edi], 0x00
+	inc edi
+	cmp edi, esi
+	jl memRegInitLoop
+	ret
 
 ; runtime relocation
 processKernelReloc:
@@ -456,7 +473,6 @@ kernRelocLoop:
 kreloc_data:
 	mov ecx, [eax]
 	add ecx, kernelBytecodeStart
-	add ecx, 5
 	mov edx, ecx
 	mov ecx, [ecx]
 	add ecx, codeDataSection
@@ -466,7 +482,6 @@ kreloc_data:
 kreloc_rdata:
 	mov ecx, [eax]
 	add ecx, kernelBytecodeStart
-	add ecx, 5
 	mov edx, ecx
 	mov ecx, [ecx]
 	add ecx, codeReadonlyData
@@ -476,20 +491,18 @@ kreloc_rdata:
 kreloc_bss:
 	mov ecx, [eax]
 	add ecx, kernelBytecodeStart
-	add ecx, 5
 	mov edx, ecx
 	mov ecx, [ecx]
-	add ecx, 7000000
+	add ecx, [reloc_memBss]
 	mov [edx], ecx
 	add eax, 4
 	jmp kernRelocLoop
 kreloc_glob:
 	mov ecx, [eax]
 	add ecx, kernelBytecodeStart
-	add ecx, 5
 	mov edx, ecx
 	mov ecx, [ecx]
-	add ecx, 8000000
+	add ecx, [reloc_memGlobVar]
 	add eax, 4
 	mov ebx, [eax]
 	add ecx, ebx
@@ -497,9 +510,28 @@ kreloc_glob:
 	add eax, 4
 	jmp kernRelocLoop
 kreloc_bssSize:
+	; set BSS ptr to memory base and increment memory base by size of BSS
+	mov ecx, [reloc_memBase]
+	mov [reloc_memBss], ecx
+	mov ebx, [eax]
+	add ecx, ebx
+	mov [reloc_memBase], ecx
+	; initialize region
+	mov ebx, [reloc_memBss]
+	mov ecx, [eax]
+	call memRegion_init
 	add eax, 4
 	jmp kernRelocLoop
 kreloc_globVarSize:
+	mov ecx, [reloc_memBase]
+	mov [reloc_memGlobVar], ecx
+	mov ebx, [eax]
+	add ecx, ebx
+	mov [reloc_memBase], ecx
+	; initialize region
+	mov ebx, [reloc_memGlobVar]
+	mov ecx, [eax]
+	call memRegion_init
 	add eax, 4
 	jmp kernRelocLoop
 kernRelocStop:

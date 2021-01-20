@@ -400,14 +400,14 @@ void fillBackground() {
 	}
 }
 
-void fillRectangle(int x1, int y1, int x2, int y2) {
+void fillRectangle(int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b) {
 	// 640x480
 	for(int y = y1; y <= y2; y++) {
 		for(int x = x1; x <= x2; x++) {
 			int idx = (y * screenWidth + x) * 3;
-			frameBuffer[idx] = 0; // b
-			frameBuffer[idx + 1] = 0; // g
-			frameBuffer[idx + 2] = 0; // r
+			frameBuffer[idx] = b;
+			frameBuffer[idx + 1] = g;
+			frameBuffer[idx + 2] = r;
 		}
 	}
 }
@@ -570,6 +570,18 @@ volatile int main(unsigned char* fb, int(*yieldEvent)()) {
 	int lastMouseY = -1;
 	int count = 0;
 	
+	/*int pos = 0;
+	unsigned char ccode = 0;
+	while(1) {
+		//fillRectangle(0, 0, screenWidth - 1, screenHeight - 1, ccode, ccode, ccode);
+		for(int y = 0; y < 40; y++) {
+			for(int x = 0; x < 80; x++) {
+				renderChar(x, y, ccode);
+			}
+		}
+		ccode++;
+	}*/
+	
 	while(1) {
 		int stat = yieldEvent();
 		// y overflow, x overflow, y sign, x sign, 1, middle btn, right btn, left btn
@@ -585,7 +597,7 @@ volatile int main(unsigned char* fb, int(*yieldEvent)()) {
 		if(mouseY > screenHeight - 1) mouseY = screenHeight - 1;
 		
 		if(lastMouseX > -1) {
-			fillRectangle(lastMouseX - 16, lastMouseY - 16, lastMouseX + 64 - 16, lastMouseY + 64 - 16);
+			fillRectangle(lastMouseX - 16, lastMouseY - 16, lastMouseX + 64 - 16, lastMouseY + 64 - 16, 0, 0, 0);
 		}
 		drawImage(mouseX, mouseY, mouseCursorImageWidth, mouseCursorImageHeight, mouseCursorImageData);
 		lastMouseX = mouseX;
@@ -612,7 +624,7 @@ volatile int main(unsigned char* fb, int(*yieldEvent)()) {
 	
 	//printf("0123456789\n");
 	
-	fillRectangle(0, 0, screenWidth - 1, screenHeight - 1);
+	fillRectangle(0, 0, screenWidth - 1, screenHeight - 1, 0, 0, 0);
 	renderString("It is now safe to turn off your computer.");
 	
 	return 1234;

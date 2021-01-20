@@ -1,3 +1,13 @@
+/*
+	Manage relocation
+	=================
+	When GCC compiles a program, it outputs an object file containing the machine code, the data, and some extra compiler data.
+	The bytecode assumes that all data starts at memory location 0.
+	However, our data is loaded somewhere else in memory at a fixed location which is not 0.
+	The object file contains relocation data which points out the location of the mov instructions in the code,
+	which this relocation system utilizes to offset our memory locations to the buffers containing the program data.
+*/
+
 var fs = require("fs");
 var child_process = require("child_process");
 
@@ -17,7 +27,7 @@ child_process.execSync("objcopy -O binary -j " + codeSection + " " + objPath + "
 child_process.execSync("objcopy -O binary -j " + dataSection + " " + objPath + " " + binDataPath);
 child_process.execSync("objcopy -O binary -j " + readonlyDataSection + " " + objPath + " " + binRdataPath);
 
-
+var jmpInstLength = 5;
 var relocBufferSize = 1; // includes null terminator
 var enumReloc = {
 	term: 0,
@@ -28,8 +38,9 @@ var enumReloc = {
 	bssSize: 5,
 	globVarSize: 6
 };
+// ensure size data are before anything else
+var relocDataHead = [];
 var relocData = [];
-
 
 var relocation = child_process.execSync("objdump -r " + objPath);
 relocation = parseRelocationDmp(relocation.toString("utf8"));
@@ -37,11 +48,6 @@ relocation = parseRelocationDmp(relocation.toString("utf8"));
 var binCode = fs.readFileSync(binCodePath);
 var binData = fs.readFileSync(binDataPath);
 var binRdata = fs.readFileSync(binRdataPath);
-
-var dataStart = 7000000;
-var dataStartBss = 8000000;
-var rdataStart = 9000000;
-var globStart = 7500000; // test only - these seem to be relocation records for global variables
 
 function parseRelocationDmp(data) {
 	data = data.replace(/\r\n/g, "\n");
@@ -101,7 +107,7 @@ function parseRelocationDmp(data) {
 	console.log("Globals:", globVarList);
 	if(globVarStart) {
 		console.log("Size of globals buffer:", globVarStart);
-		relocData.push([enumReloc.globVarSize, globVarStart]);
+		relocDataHead.push([enumReloc.globVarSize, globVarStart]);
 		relocBufferSize += 1 + 4;
 	}
 	return records;
@@ -119,26 +125,26 @@ if(textReloc) {
 
 	for(var i = 0; i < relocation_data.length; i++) {
 		var reloc = relocation_data[i];
-		relocData.push([enumReloc.data, reloc]);
+		relocData.push([enumReloc.data, reloc + jmpInstLength]);
 		relocBufferSize += 1 + 4;
 	}
 	for(var i = 0; i < relocation_bss.length; i++) {
 		var reloc = relocation_bss[i];
 		var ptr = binCode.readUInt32LE(reloc);
 		if(ptr > bssMaxPtr) bssMaxPtr = ptr;
-		relocData.push([enumReloc.bss, reloc]);
+		relocData.push([enumReloc.bss, reloc + jmpInstLength]);
 		relocBufferSize += 1 + 4;
 	}
 	for(var i = 0; i < relocation_rdata.length; i++) {
 		var reloc = relocation_rdata[i];
-		relocData.push([enumReloc.rdata, reloc]);
+		relocData.push([enumReloc.rdata, reloc + jmpInstLength]);
 		relocBufferSize += 1 + 4;
 	}
 	for(var i = 0; i < relocation_glob.length; i++) {
 		var reloc = relocation_glob[i];
 		var rel_ptr = reloc[0];
 		var rel_add = reloc[1];
-		relocData.push([enumReloc.glob, rel_ptr, rel_add]);
+		relocData.push([enumReloc.glob, rel_ptr + jmpInstLength, rel_add]);
 		relocBufferSize += 1 + 4 + 4;
 	}
 	if(bssMaxPtr > -1) {
@@ -146,10 +152,15 @@ if(textReloc) {
 		var bssSize = bssMaxPtr + 4;
 		if(bssSize > 100000) throw "Warning: BSS buffer is very large. Retrieved size of " + bssSize;
 		console.log("Size of BSS buffer:", bssSize);
-		relocData.push([enumReloc.bssSize, bssSize]);
+		relocDataHead.push([enumReloc.bssSize, bssSize]);
 		relocBufferSize += 1 + 4;
 	}
 }
+for(var i = 0; i < relocData.length; i++) {
+	relocDataHead.push(relocData[i]);
+}
+relocData = relocDataHead;
+
 console.log("Total size of relocation buffer:", relocBufferSize);
 var relocBuffer = Buffer.alloc(relocBufferSize);
 var relocBufferPtr = 0;
@@ -187,7 +198,6 @@ if(!symLocated) {
 }
 
 // prepend jump-ahead instruction if main function starts later
-var jmpInstLength = 5;
 var jmpMain = Buffer.alloc(jmpInstLength);
 jmpMain[0] = 0xE9;
 jmpMain.writeUInt32LE(symStart, 1);
