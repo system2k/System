@@ -657,8 +657,8 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 		}
 	}
 	
-	printText("Right click to shut down");
-	printText("Middle mouse button to switch color");
+	printText("Right click to shut down\n");
+	printText("Middle mouse button to switch color\n");
 	
 	unsigned char demoR = 0;
 	unsigned char demoG = 255;
@@ -702,6 +702,7 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 				
 				if(statByte & 0b00000100) {
 					paletteIndex++;
+					paletteIndex %= 8;
 					demoR = palette[paletteIndex][0];
 					demoG = palette[paletteIndex][1];
 					demoB = palette[paletteIndex][2];
