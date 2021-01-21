@@ -7,7 +7,7 @@ BootSector:
 	int 0x13		; call bios disk service
 
 	mov ah, 0x02	; command to read sectors into memory
-	mov al, 40		; read 40 sectors
+	mov al, 62		; read 62 sectors
 	mov dl, 0x80	; drive number
 	mov ch, 0		; cylinder number
 	mov dh, 0		; head number
@@ -134,6 +134,11 @@ BeginKernel32:
 	;ebp was observed to start at 0x00006EF0 (varies)
 	;increments by 4 on protected mode, 2 on real mode
 
+	; program the timer interrupt to about 60 ticks per second
+	mov ax, 1193181 / 60
+	out 0x40, al
+	mov al, ah
+	out 0x40, al
 
 	; remap PIC
 	mov al, 0x11
@@ -202,6 +207,10 @@ EventReady: db 0x00
 ; Timer Interrupt
 addr_irq0:
 	pusha
+	mov al, 0x01
+	mov byte [EventReady], al
+	mov al, 0x11
+	call PushByteEvent
 	mov al, 0x20
 	out 0x20, al ;; EOI
 	popa
@@ -376,43 +385,26 @@ addr_irq15:
 	out 0x20, al ;; EOI
 	popa
 	iret
-	
+
 KernelYieldEvent:
-	pusha
-KernelYieldLoop:
+	;pusha
+;KernelYieldLoop:
 	hlt
-	mov al, byte [EventReady]
-	cmp al, 0x00
-	je KernelYieldLoop
-	
-	; copy packet to event buffer
-	mov ebx, 8500000
-	mov al, [Packet_PS2Mouse]
-	mov [ebx], al
-	mov ebx, 8500001
-	mov al, [Packet_PS2Mouse + 1]
-	mov [ebx], al
-	mov ebx, 8500002
-	mov al, [Packet_PS2Mouse + 2]
-	mov [ebx], al
-	mov ebx, 8500003
-	mov al, [Packet_PS2Mouse + 3]
-	mov [ebx], al
-	mov ebx, 8500004
-	mov al, [Packet_PS2Mouse + 4]
-	mov [ebx], al
-	
-	mov al, 0x00
-	mov byte [EventReady], al
-	
-	popa
-	mov eax, 7777
+	;popa
 	ret
 
+; ps2 mouse packet is fully parsed
 process_ps2_packet:
 	; event is now ready to be dispatched
-	mov al, 0x01
-	mov byte [EventReady], al
+	mov al, 0x10
+	call PushByteEvent
+	mov al, [Packet_PS2Mouse]
+	call PushByteEvent
+	mov al, [Packet_PS2Mouse + 1]
+	call PushByteEvent
+	mov al, [Packet_PS2Mouse + 2]
+	call PushByteEvent
+	call SignalEventReady
 	ret
 
 beginIDT:
@@ -437,17 +429,47 @@ reloc_memBase: dd 0x00100000
 reloc_memBss: dd 0x00000000
 reloc_memGlobVar: dd 0x00000000
 
+eventBufferPtr: dd 0x00000000
+eventBufferSet: db 0x00
+eventBufferPos: dw 0x0000
+KernelSetupEvents:
+	mov eax, [esp + 4] ; pointer
+	mov [eventBufferPtr], eax
+	mov al, 0x01
+	mov [eventBufferSet], al
+	ret
+	
+; al: byte
+PushByteEvent:
+	mov bl, [eventBufferSet]
+	cmp bl, 0x00
+	je eventPushByteEnd
+	xor ebx, ebx
+	mov bx, [eventBufferPos]
+	mov ecx, [eventBufferPtr]
+	add ebx, ecx
+
+	mov [ebx], al
+	mov bx, [eventBufferPos]
+	inc bx
+	mov [eventBufferPos], bx
+eventPushByteEnd:
+	ret
+	
+SignalEventReady:
+	mov al, 0x01
+	mov byte [EventReady], al
+	ret
+
 ; Initialize memory region with zeros
 ; ebx: starting addr
 ; ecx: buffer size
 memRegion_init:
-	mov edi, ebx
-	mov esi, ebx
-	add esi, ecx
+	add ecx, ebx
 memRegInitLoop:
-	mov byte [edi], 0x00
-	inc edi
-	cmp edi, esi
+	mov byte [ebx], 0x00
+	inc ebx
+	cmp ebx, ecx
 	jl memRegInitLoop
 	ret
 
@@ -549,6 +571,7 @@ kernelBytecode:
 	call processKernelReloc
 	mov eax, [VideoMemPtr]
 	push KernelYieldEvent
+	push KernelSetupEvents
 	push eax
 	call kernelBytecodeStart
 	jmp kernelBytecodeEnd

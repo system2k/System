@@ -1,4 +1,5 @@
 unsigned char* frameBuffer;
+unsigned char* eventBuffer;
 
 int mouseX = 100;
 int mouseY = 130;
@@ -15,6 +16,10 @@ void* malloc(unsigned int size) {
 	memoryBase += size;
 	return pos;
 }
+
+unsigned char* bitmap;
+int bitmapUpd = 0;
+unsigned char* bitmapUpdMap;
 
 unsigned char fontData[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7E, 0xC3, 0x81, 0xA5, 0x81, 0xBD, 0x99, 0xC3, 0x7E, 0x00, 0x00,
@@ -319,9 +324,13 @@ unsigned char mouseCursorImageData[] = {
 
 void drawImage(int sx, int sy, int width, int height, unsigned char data[]) {
 	for(int y = 0; y < height; y++) {
+		int ady = y + sy;
+		if(ady < 0 || ady >= screenHeight) continue;
 		for(int x = 0; x < width; x++) {
+			int adx = x + sx;
+			if(adx < 0 || adx >= screenWidth) continue;
 			int sIdx = (y * width + x) * 4;
-			int dIdx = ((y + sy) * screenWidth + (x + sx)) * 3;
+			int dIdx = (ady * screenWidth + adx) * 3;
 			unsigned char r = ((float)(data[sIdx + 0] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 2] * (255 - data[sIdx + 3]))) / 255;
 			unsigned char g = ((float)(data[sIdx + 1] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 1] * (255 - data[sIdx + 3]))) / 255;
 			unsigned char b = ((float)(data[sIdx + 2] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 0] * (255 - data[sIdx + 3]))) / 255;
@@ -329,6 +338,9 @@ void drawImage(int sx, int sy, int width, int height, unsigned char data[]) {
 			frameBuffer[dIdx + 1] = g;
 			frameBuffer[dIdx + 2] = r;
 		}
+		int pos = (y + sy) / 8;
+		int mpos = (y + sy) % 8;
+		bitmapUpdMap[pos] |= (1 << mpos);
 	}
 }
 
@@ -342,12 +354,13 @@ void renderChar(int cx, int cy, int charCode) {
 		for(int x = 0; x < 8; x++) {
 			unsigned char val = (byt >> x & 1);
 			val *= 255;
-			frameBuffer[x * 3 + idx] = val;
-			frameBuffer[x * 3 + idx + 1] = val;
-			frameBuffer[x * 3 + idx + 2] = val;
+			bitmap[x * 3 + idx] = val;
+			bitmap[x * 3 + idx + 1] = val;
+			bitmap[x * 3 + idx + 2] = val;
 		}
 		idx += screenWidth * 3;
 	}
+	bitmapUpd = 1;
 }
 
 void renderString(char text[]) {
@@ -393,11 +406,12 @@ void fillBackground() {
 			if(x % 16 == 0 || y % 16 == 0) {
 				b = 0;
 			}
-			frameBuffer[ptr++] = b;
-			frameBuffer[ptr++] = g;
-			frameBuffer[ptr++] = r;
+			bitmap[ptr++] = b;
+			bitmap[ptr++] = g;
+			bitmap[ptr++] = r;
 		}
 	}
+	bitmapUpd = 1;
 }
 
 void fillRectangle(int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b) {
@@ -405,11 +419,12 @@ void fillRectangle(int x1, int y1, int x2, int y2, unsigned char r, unsigned cha
 	for(int y = y1; y <= y2; y++) {
 		for(int x = x1; x <= x2; x++) {
 			int idx = (y * screenWidth + x) * 3;
-			frameBuffer[idx] = b;
-			frameBuffer[idx + 1] = g;
-			frameBuffer[idx + 2] = r;
+			bitmap[idx] = b;
+			bitmap[idx + 1] = g;
+			bitmap[idx + 2] = r;
 		}
 	}
+	bitmapUpd = 1;
 }
 
 void io_out8(unsigned short port, unsigned char val) {
@@ -531,101 +546,128 @@ void ps2_init() {
 	ps2_write(0xF4); // enable
 }
 
+void renderBitmapFrame() {
+	unsigned int ptrPos = 0;
+	for(int x = 0; x < 60; x++) {
+		unsigned char upd = bitmapUpdMap[x];
+		for(int z = 0; z < 8; z++) {
+			unsigned char bit = (upd >> z) & 1;
+			if(bit) {
+				for(int s = 0; s < screenWidth * 3; s++) {
+					frameBuffer[ptrPos] = bitmap[ptrPos++];
+				}
+			} else {
+				ptrPos += screenWidth * 3;
+			}
+		}
+		bitmapUpdMap[x] = 0;
+	}
+}
+
+void rerenderFrame() {
+	for(int x = 0; x < 60; x++) {
+		bitmapUpdMap[x] = 0b11111111;
+	}
+	renderBitmapFrame();
+}
+
 // ensure it gets put into .text and not an unnamed section somewhere (occurs when using optimization flags). # for commenting out in gcc assembly source
 __attribute__((section(".text#")))
-volatile int main(unsigned char* fb, int(*yieldEvent)()) {
+volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*yieldEvent)()) {
 	frameBuffer = fb;
 	
-	unsigned char* eventBuffer = (unsigned char*)8500000;
+	/*
+	TODO:
+	gcc may insert a call to memset() when using -O3, despite the function not existing here.
+	*/
+
+	bitmap = malloc(640 * 480 * 3);
+	bitmapUpdMap = malloc(480 / 8); // 60
+	for(int x = 0; x < 60; x++) {
+		bitmapUpdMap[x] = 0b11111111;
+	}
+	
+	unsigned short eventBufferPos = 0;
+	unsigned char* eventBuffer = malloc(65536);
+
+	for(int i = 0; i < 65536; i++) {
+		eventBuffer[i] = 0;
+	}
+	setupEvents(eventBuffer);
 	
 	ps2_init();
 	
-	//char test[] = "This is a test\n\0";
-	//char test2[] = "This is another string.\n\0";
-	
 	fillBackground();
-	//unsigned char* frameBuffer = (unsigned char*)0xFD000000;
 	for(int i = 0; i < 1000; i++) {
-		frameBuffer[i] = i % 256;
+		bitmap[i] = i % 256;
 	}
-	
-	/*for(int i = 0; i < 20; i++) {
-		printInteger(i);
-	}*/
-	//char test[] = "This is a test\n\0";
-	
-	/*renderString(test);
-	renderString(test);
-	renderString(test);
-	renderString("This is a test\n\0");
-	printInteger(1234567890);*/
-	
-	//fillRectangle(0, 0, 16, 16);
-	
-	//renderString("Compile Test\n");
-	
-	drawImage(mouseX, mouseY, mouseCursorImageWidth, mouseCursorImageHeight, mouseCursorImageData);
+	bitmapUpd = 1;
 	
 	int lastMouseX = -1;
 	int lastMouseY = -1;
 	int count = 0;
 	
-	/*int pos = 0;
-	unsigned char ccode = 0;
-	while(1) {
-		//fillRectangle(0, 0, screenWidth - 1, screenHeight - 1, ccode, ccode, ccode);
-		for(int y = 0; y < 40; y++) {
-			for(int x = 0; x < 80; x++) {
-				renderChar(x, y, ccode);
-			}
+	for(int y = 0; y < 16; y++) {
+		for(int x = 0; x < 16; x++) {
+			renderChar(x + 30, y + 20, y * 16 + x);
 		}
-		ccode++;
-	}*/
-	
-	while(1) {
-		int stat = yieldEvent();
-		// y overflow, x overflow, y sign, x sign, 1, middle btn, right btn, left btn
-		unsigned char statByte = eventBuffer[0];
-		signed char deltaX = eventBuffer[1];
-		signed char deltaY = eventBuffer[2];
-		
-		mouseX += deltaX;
-		mouseY -= deltaY;
-		if(mouseX < 0) mouseX = 0;
-		if(mouseX > screenWidth - 1) mouseX = screenWidth - 1;
-		if(mouseY < 0) mouseY = 0;
-		if(mouseY > screenHeight - 1) mouseY = screenHeight - 1;
-		
-		if(lastMouseX > -1) {
-			fillRectangle(lastMouseX - 16, lastMouseY - 16, lastMouseX + 64 - 16, lastMouseY + 64 - 16, 0, 0, 0);
-		}
-		drawImage(mouseX, mouseY, mouseCursorImageWidth, mouseCursorImageHeight, mouseCursorImageData);
-		lastMouseX = mouseX;
-		lastMouseY = mouseY;
-		
-		if(count++ >= 1000) {
-			break;
-		}
-		
-		//printInteger(stat);
-		/*unsigned char state = ((unsigned char*)8500000)[0];
-		for(int x = 0; x < state; x++) {
-			renderString("*");
-			((unsigned char*)8500000)[0]--;
-		}*/
 	}
 	
-	/*printText((int)&test);
-	for(int i = 0; i < 4; i++) {
-		printText((int)&test2);
-	}*/
-	//void(*remoteFunc)(int) = (void(*)(int))0x1000000;
-	//remoteFunc(123);
+	renderString("Right click to shut down");
+
+	while(1) {
+		yieldEvent();
+		int ignoreFrameRenderReq = 0;
+		int terminate = 0;
+		for(int i = 0; i < 65536; i++) {
+			unsigned char stat = eventBuffer[eventBufferPos];
+			if(stat == 0x10) { // cursor update
+				// y overflow, x overflow, y sign, x sign, 1, middle btn, right btn, left btn
+				unsigned char statByte = eventBuffer[eventBufferPos + 1];
+				signed char deltaX = eventBuffer[eventBufferPos + 2];
+				signed char deltaY = eventBuffer[eventBufferPos + 3];
+				
+				if(statByte & 0b00000010) {
+					terminate = 1;
+					break;
+				}
+				
+				mouseX += deltaX;
+				mouseY -= deltaY;
+				if(mouseX < 0) mouseX = 0;
+				if(mouseX > screenWidth - 1) mouseX = screenWidth - 1;
+				if(mouseY < 0) mouseY = 0;
+				if(mouseY > screenHeight - 1) mouseY = screenHeight - 1;
+				
+				lastMouseX = mouseX;
+				lastMouseY = mouseY;
+				bitmapUpd = 1;
+				
+				eventBuffer[eventBufferPos++] = 0; // id
+				eventBuffer[eventBufferPos++] = 0; // stat
+				eventBuffer[eventBufferPos++] = 0; // dx
+				eventBuffer[eventBufferPos++] = 0; // dy
+				continue;
+			} else if(stat == 0x11) { // frame update
+				if(bitmapUpd && !ignoreFrameRenderReq) {
+					bitmapUpd = 0;
+					renderBitmapFrame();
+					drawImage(mouseX, mouseY, mouseCursorImageWidth, mouseCursorImageHeight, mouseCursorImageData);
+					ignoreFrameRenderReq = 1;
+				}
+				eventBuffer[eventBufferPos++] = 0;
+				continue;
+			}
+			break;
+		}
+		if(terminate) break;
+	}
 	
-	//printf("0123456789\n");
-	
+	curX = 0;
+	curY = 0;
 	fillRectangle(0, 0, screenWidth - 1, screenHeight - 1, 0, 0, 0);
 	renderString("It is now safe to turn off your computer.");
+	rerenderFrame();
 	
-	return 1234;
+	return 0;
 }
