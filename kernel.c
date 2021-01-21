@@ -1,20 +1,29 @@
+#define defaultScreenWidth 640
+#define defaultScreenHeight 480
+
 unsigned char* frameBuffer;
 unsigned char* eventBuffer;
 
-int mouseX = 100;
-int mouseY = 130;
+int screenWidth = defaultScreenWidth;
+int screenHeight = defaultScreenHeight;
 
-int screenWidth = 640;
-int screenHeight = 480;
+int mouseX = defaultScreenWidth / 2;
+int mouseY = defaultScreenHeight / 2;
 
 int curX = 0;
 int curY = 0;
 
-unsigned int memoryBase = 3000000;
+unsigned int memoryBase = 0x200000;
 void* malloc(unsigned int size) {
 	void* pos = (void*)memoryBase;
 	memoryBase += size;
 	return pos;
+}
+
+void* memset(void* str, int c, unsigned int n) {
+	for(int i = 0; i < n; i++) {
+		((unsigned char*)(str + i))[i] = c;
+	}
 }
 
 unsigned char* bitmap;
@@ -363,7 +372,45 @@ void renderChar(int cx, int cy, int charCode) {
 	bitmapUpd = 1;
 }
 
-void renderString(char text[]) {
+void renderCharExt(int cx, int cy, int charCode, int scaleW, int scaleH, unsigned char r, unsigned char g, unsigned char b) {
+	int sx = cx;
+	int sy = cy;
+	int tblIdx = charCode * 12;
+	for(int y = 0; y < 12 * scaleH; y++) {
+		unsigned char byt = fontData[tblIdx + (y / scaleH)];
+		for(int x = 0; x < 8 * scaleW; x++) {
+			unsigned char val = (byt >> (x / scaleW) & 1);
+			if(val) {
+				int idx = ((sy + y) * screenWidth + (sx + x)) * 3;
+				bitmap[idx] = b;
+				bitmap[idx + 1] = g;
+				bitmap[idx + 2] = r;
+			}
+		}
+		int pos = (y + sy) / 8;
+		int mpos = (y + sy) % 8;
+		bitmapUpdMap[pos] |= (1 << mpos);
+	}
+	bitmapUpd = 1;
+}
+
+void renderString(char text[], int offX, int offY, int scaleW, int scaleH, unsigned char r, unsigned char g, unsigned char b) {
+	int pos = 0;
+	int cx = 0;
+	int cy = 0;
+	while(text[pos]) {
+		unsigned char code = text[pos++];
+		if(code == '\n') {
+			cx = 0;
+			cy++;
+			continue;
+		}
+		renderCharExt(offX + (cx * scaleW * 8), offY + (cy * scaleH * 12), code, scaleW, scaleH, r, g, b);
+		cx++;
+	}
+}
+
+void printText(char text[]) {
 	int pos = 0;
 	while(text[pos]) {
 		unsigned char code = text[pos++];
@@ -393,7 +440,7 @@ void printInteger(int i) {
 		test[9 - x] = '0' + (val % 10);
 		val /= 10;
 	}
-	renderString(test);
+	printText(test);
 }
 
 void fillBackground() {
@@ -401,9 +448,11 @@ void fillBackground() {
 	for(int y = 0; y < screenHeight; y++) {
 		for(int x = 0; x < screenWidth; x++) {
 			unsigned char r = 0;
-			unsigned char g = 0;
-			unsigned char b = 255;
-			if(x % 16 == 0 || y % 16 == 0) {
+			unsigned char g = 162;
+			unsigned char b = 232;
+			if(((y + (x / 20)) % 32 == 0) || ((x - (y / 20)) % 32 == 0)) {
+				r = 0;
+				g = 0;
 				b = 0;
 			}
 			bitmap[ptr++] = b;
@@ -423,6 +472,9 @@ void fillRectangle(int x1, int y1, int x2, int y2, unsigned char r, unsigned cha
 			bitmap[idx + 1] = g;
 			bitmap[idx + 2] = r;
 		}
+		int pos = y / 8;
+		int mpos = y % 8;
+		bitmapUpdMap[pos] |= (1 << mpos);
 	}
 	bitmapUpd = 1;
 }
@@ -575,11 +627,6 @@ void rerenderFrame() {
 __attribute__((section(".text#")))
 volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*yieldEvent)()) {
 	frameBuffer = fb;
-	
-	/*
-	TODO:
-	gcc may insert a call to memset() when using -O3, despite the function not existing here.
-	*/
 
 	bitmap = malloc(640 * 480 * 3);
 	bitmapUpdMap = malloc(480 / 8); // 60
@@ -598,9 +645,6 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 	ps2_init();
 	
 	fillBackground();
-	for(int i = 0; i < 1000; i++) {
-		bitmap[i] = i % 256;
-	}
 	bitmapUpd = 1;
 	
 	int lastMouseX = -1;
@@ -613,7 +657,23 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 		}
 	}
 	
-	renderString("Right click to shut down");
+	printText("Right click to shut down");
+	printText("Middle mouse button to switch color");
+	
+	unsigned char demoR = 0;
+	unsigned char demoG = 255;
+	unsigned char demoB = 0;
+	int paletteIndex = 0;
+	unsigned char palette[][3] = {
+		{0, 255, 0},
+		{0, 0, 0},
+		{0, 255, 255},
+		{255, 0, 255},
+		{255, 255, 0},
+		{255, 0, 0},
+		{0, 0, 255},
+		{255, 255, 255}
+	};
 
 	while(1) {
 		yieldEvent();
@@ -634,10 +694,24 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 				
 				mouseX += deltaX;
 				mouseY -= deltaY;
+				
 				if(mouseX < 0) mouseX = 0;
 				if(mouseX > screenWidth - 1) mouseX = screenWidth - 1;
 				if(mouseY < 0) mouseY = 0;
 				if(mouseY > screenHeight - 1) mouseY = screenHeight - 1;
+				
+				if(statByte & 0b00000100) {
+					paletteIndex++;
+					demoR = palette[paletteIndex][0];
+					demoG = palette[paletteIndex][1];
+					demoB = palette[paletteIndex][2];
+				}
+				
+				if(statByte & 0b00000001) {
+					int px = (mouseX / 16) * 16;
+					int py = (mouseY / 16) * 16;
+					fillRectangle(px, py, px + 15, py + 15, demoR, demoG, demoB);
+				}
 				
 				lastMouseX = mouseX;
 				lastMouseY = mouseY;
@@ -663,10 +737,9 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 		if(terminate) break;
 	}
 	
-	curX = 0;
-	curY = 0;
 	fillRectangle(0, 0, screenWidth - 1, screenHeight - 1, 0, 0, 0);
-	renderString("It is now safe to turn off your computer.");
+	renderString("It's now safe to turn off", 25, 150, 3, 4, 225, 133, 34);
+	renderString("our computer.", 150, 200, 3, 4, 225, 133, 34);
 	rerenderFrame();
 	
 	return 0;
