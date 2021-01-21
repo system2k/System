@@ -185,10 +185,10 @@ var symStart = 0;
 for(var i = 0; i < symData.length; i++) {
 	var sym = symData[i];
 	sym = sym.split(" ");
-	if(sym[1] == "T" && sym[2] == "main") {
+	if(sym[1] == "T" && sym[2].startsWith("KernelMain(")) {
 		var symStartHex = parseInt(sym[0], 16).toString(16).padStart(2, 0).toUpperCase();
 		symStart = parseInt(sym[0], 16);
-		console.log("main() starting point: 0x" + symStartHex);
+		console.log("KernelMain() starting point: 0x" + symStartHex);
 		symLocated = true;
 		break;
 	}

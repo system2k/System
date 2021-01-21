@@ -5,6 +5,7 @@
 
 
 requirements:
+	GNU compiler (gcc/g++)
 	node
 	nasm
 	objcopy

@@ -1,6 +1,8 @@
 #define defaultScreenWidth 640
 #define defaultScreenHeight 480
 
+#include "math.cpp"
+
 unsigned char* frameBuffer;
 unsigned char* eventBuffer;
 
@@ -14,15 +16,18 @@ int curX = 0;
 int curY = 0;
 
 unsigned int memoryBase = 0x200000;
-void* malloc(unsigned int size) {
-	void* pos = (void*)memoryBase;
-	memoryBase += size;
-	return pos;
-}
 
-void* memset(void* str, int c, unsigned int n) {
-	for(int i = 0; i < n; i++) {
-		((unsigned char*)(str + i))[i] = c;
+extern "C" {
+	void* malloc(unsigned int size) {
+		void* pos = (void*)memoryBase;
+		memoryBase += size;
+		return pos;
+	}
+
+	void* memset(void* str, int c, unsigned int n) {
+		for(int i = 0; i < n; i++) {
+			((unsigned char*)(str + i))[i] = c;
+		}
 	}
 }
 
@@ -625,7 +630,7 @@ void rerenderFrame() {
 
 // ensure it gets put into .text and not an unnamed section somewhere (occurs when using optimization flags). # for commenting out in gcc assembly source
 __attribute__((section(".text#")))
-volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*yieldEvent)()) {
+volatile int KernelMain(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*yieldEvent)()) {
 	frameBuffer = fb;
 
 	bitmap = malloc(640 * 480 * 3);
@@ -655,6 +660,11 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 		for(int x = 0; x < 16; x++) {
 			renderChar(x + 30, y + 20, y * 16 + x);
 		}
+	}
+	
+	for(int i = 0; i < 320; i++) {
+		float val = (sin((double)i / 5) + 1) * 125;
+		fillRectangle(i, 80, i, 80 + 3, val, val, val);
 	}
 	
 	printText("Right click to shut down\n");
@@ -709,9 +719,9 @@ volatile int main(unsigned char* fb, void(*setupEvents)(unsigned char*), void(*y
 				}
 				
 				if(statByte & 0b00000001) {
-					int px = (mouseX / 16) * 16;
-					int py = (mouseY / 16) * 16;
-					fillRectangle(px, py, px + 15, py + 15, demoR, demoG, demoB);
+					int px = (mouseX / 8) * 8;
+					int py = (mouseY / 8) * 8;
+					fillRectangle(px, py, px + 7, py + 7, demoR, demoG, demoB);
 				}
 				
 				lastMouseX = mouseX;

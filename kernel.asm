@@ -7,7 +7,7 @@ BootSector:
 	int 0x13		; call bios disk service
 
 	mov ah, 0x02	; command to read sectors into memory
-	mov al, 62		; read 62 sectors
+	mov al, 100		; read sectors
 	mov dl, 0x80	; drive number
 	mov ch, 0		; cylinder number
 	mov dh, 0		; head number
