@@ -1,4 +1,2 @@
-# Some Kind of Bootable OWOP Thing
+# Bootable OWOP System
 <img src="https://raw.githubusercontent.com/system2k/System/master/demo/main.png">
-<br>
-<img src="https://raw.githubusercontent.com/system2k/System/master/demo/shutdown.png">
