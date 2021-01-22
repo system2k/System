@@ -35,8 +35,9 @@ var enumReloc = {
 	rdata: 2,
 	bss: 3,
 	glob: 4,
-	bssSize: 5,
-	globVarSize: 6
+	text: 5,
+	bssSize: 6,
+	globVarSize: 7
 };
 // ensure size data are before anything else
 var relocDataHead = [];
@@ -67,7 +68,8 @@ function parseRelocationDmp(data) {
 					data: [],
 					rdata: [],
 					bss: [],
-					glob: []
+					glob: [],
+					text: []
 				};
 			}
 			continue;
@@ -85,6 +87,8 @@ function parseRelocationDmp(data) {
 					records[currentSection].rdata.push(addr);
 				} else if(val == ".data") {
 					records[currentSection].data.push(addr);
+				} else if(val == ".text") {
+					records[currentSection].text.push(addr);
 				} else {
 					if(val.indexOf("-") > -1) {
 						var globParts = val.split("-");
@@ -118,6 +122,7 @@ var textReloc = relocation[".text"];
 if(textReloc) {
 	var relocation_data = textReloc.data;
 	var relocation_rdata = textReloc.rdata;
+	var relocation_text = textReloc.text;
 	var relocation_bss = textReloc.bss;
 	var relocation_glob = textReloc.glob;
 	
@@ -138,6 +143,11 @@ if(textReloc) {
 	for(var i = 0; i < relocation_rdata.length; i++) {
 		var reloc = relocation_rdata[i];
 		relocData.push([enumReloc.rdata, reloc + jmpInstLength]);
+		relocBufferSize += 1 + 4;
+	}
+	for(var i = 0; i < relocation_text.length; i++) {
+		var reloc = relocation_text[i];
+		relocData.push([enumReloc.text, reloc + jmpInstLength]);
 		relocBufferSize += 1 + 4;
 	}
 	for(var i = 0; i < relocation_glob.length; i++) {
@@ -184,13 +194,15 @@ var symLocated = false;
 var symStart = 0;
 for(var i = 0; i < symData.length; i++) {
 	var sym = symData[i];
-	sym = sym.split(" ");
+	sym = sym.split(/[\s]+/g);
 	if(sym[1] == "T" && sym[2].startsWith("KernelMain(")) {
 		var symStartHex = parseInt(sym[0], 16).toString(16).padStart(2, 0).toUpperCase();
 		symStart = parseInt(sym[0], 16);
-		console.log("KernelMain() starting point: 0x" + symStartHex);
+		console.log("KernelMain starting point: 0x" + symStartHex);
 		symLocated = true;
-		break;
+	}
+	if(sym[1] == "U") {
+		console.log("***WARNING***: Detected missing function: " + sym.slice(2).join(" "));
 	}
 }
 if(!symLocated) {

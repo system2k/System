@@ -15,7 +15,7 @@ BootSector:
 	mov bx, sys_stage2	; load sector to this address
 	int 0x13
 
-	jmp sys_stage2
+	jmp 0x0000:sys_stage2
 
 	times ((0x200 - 2) - ($ - $$)) db 0x00	; pad file to 510
 	dw 0xAA55					; add 2 magic bytes
@@ -204,185 +204,108 @@ Packet_PS2Pos: db 0x00
 
 EventReady: db 0x00
 
-; Timer Interrupt
+KernIntTablePtr: dd 0x00000000
+
+KernelSetIRQ:
+	mov eax, [esp + 4]
+	mov [KernIntTablePtr], eax
+	sti
+	ret
+
 addr_irq0:
 	pusha
-	mov al, 0x01
-	mov byte [EventReady], al
-	mov al, 0x11
-	call PushByteEvent
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Keyboard Interrupt
 addr_irq1:
 	pusha
-	mov al, 0x20
-	out 0x20, al ; acknowledge keyboard interrupt to PIC (prevents hanging keyboard)
+	mov eax, [KernIntTablePtr]
+	call [eax + 4]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-addr_irq2: ;; IRQ 2?
+addr_irq2:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 8]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq3:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 12]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq4:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 16]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq5:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 20]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq6:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 24]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq7:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 28]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq8:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 32]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq9:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 36]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq10:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 40]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq11:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 44]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq12:
 	pusha
-
-	mov eax, 0
-	mov edx, 0
-	mov [Packet_PS2Pos], al
-dataloop:
-	xor eax, eax
-	xor ebx, ebx
-	in al, 0x64 ; status
-	mov [tempIrq12AL], al
-
-	mov bl, [tempIrq12AL]
-	and bl, 0x20
-	cmp bl, 0x20
-	jne exit_ps2_loop
-	
-	mov bl, [tempIrq12AL]
-	and bl, 0x01
-	cmp bl, 0
-	jz exit_ps2_loop
-	
-	in al, 0x60 ; buffer
-	
-	; store packet
-	mov ebx, Packet_PS2Mouse
-	mov cl, [Packet_PS2Pos]
-	and ecx, 0xFF
-	add ebx, ecx
-	mov [ebx], al
-
-	cmp cl, 0
-	je case_0
-	cmp cl, 1
-	je case_1
-	cmp cl, 2
-	je case_2
-	cmp cl, 3
-	je case_3
-	jmp case_def
-case_0:
-	inc cl
-	mov [Packet_PS2Pos], cl
-	jmp case_def
-case_1:
-	inc cl
-	mov [Packet_PS2Pos], cl
-	jmp case_def
-case_2:
-	inc cl
-	mov [Packet_PS2Pos], cl
-	call process_ps2_packet
-	jmp case_def
-case_3:
-	; wheel?
-	inc cl
-	mov [Packet_PS2Pos], cl
-	call process_ps2_packet
-	jmp case_def
-case_def:
-	jmp dataloop
-exit_ps2_loop:
-	mov al, 0x20
-	out 0xA0, al
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 48]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq13:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 52]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq14:
 	pusha
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 56]
 	popa
 	iret
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 addr_irq15:
 	pusha
-	mov al, 0x20
-	out 0xA0, al ;; EOI
-	mov al, 0x20
-	out 0x20, al ;; EOI
+	mov eax, [KernIntTablePtr]
+	call [eax + 60]
 	popa
 	iret
 
@@ -391,20 +314,6 @@ KernelYieldEvent:
 ;KernelYieldLoop:
 	hlt
 	;popa
-	ret
-
-; ps2 mouse packet is fully parsed
-process_ps2_packet:
-	; event is now ready to be dispatched
-	mov al, 0x10
-	call PushByteEvent
-	mov al, [Packet_PS2Mouse]
-	call PushByteEvent
-	mov al, [Packet_PS2Mouse + 1]
-	call PushByteEvent
-	mov al, [Packet_PS2Mouse + 2]
-	call PushByteEvent
-	call SignalEventReady
 	ret
 
 beginIDT:
@@ -421,45 +330,12 @@ beginIDT:
 
 	mov eax, IDT_ptr_high
 	lidt [eax]
-	sti
-
+	
 	jmp BeginKernel
 
 reloc_memBase: dd 0x00100000
 reloc_memBss: dd 0x00000000
 reloc_memGlobVar: dd 0x00000000
-
-eventBufferPtr: dd 0x00000000
-eventBufferSet: db 0x00
-eventBufferPos: dw 0x0000
-KernelSetupEvents:
-	mov eax, [esp + 4] ; pointer
-	mov [eventBufferPtr], eax
-	mov al, 0x01
-	mov [eventBufferSet], al
-	ret
-	
-; al: byte
-PushByteEvent:
-	mov bl, [eventBufferSet]
-	cmp bl, 0x00
-	je eventPushByteEnd
-	xor ebx, ebx
-	mov bx, [eventBufferPos]
-	mov ecx, [eventBufferPtr]
-	add ebx, ecx
-
-	mov [ebx], al
-	mov bx, [eventBufferPos]
-	inc bx
-	mov [eventBufferPos], bx
-eventPushByteEnd:
-	ret
-	
-SignalEventReady:
-	mov al, 0x01
-	mov byte [EventReady], al
-	ret
 
 ; Initialize memory region with zeros
 ; ebx: starting addr
@@ -487,9 +363,11 @@ kernRelocLoop:
 	je kreloc_bss
 	cmp bl, 4 ; glob
 	je kreloc_glob
-	cmp bl, 5 ; bssSize
+	cmp bl, 5 ; text
+	je kreloc_text
+	cmp bl, 6 ; bssSize
 	je kreloc_bssSize
-	cmp bl, 6 ; globVarSize
+	cmp bl, 7 ; globVarSize
 	je kreloc_globVarSize
 	jmp kernRelocStop
 kreloc_data:
@@ -528,6 +406,16 @@ kreloc_glob:
 	add eax, 4
 	mov ebx, [eax]
 	add ecx, ebx
+	mov [edx], ecx
+	add eax, 4
+	jmp kernRelocLoop
+kreloc_text:
+	mov ecx, [eax]
+	add ecx, kernelBytecodeStart
+	mov edx, ecx
+	mov ecx, [ecx]
+	add ecx, kernelBytecodeStart
+	add ecx, 5 ; initial jmp
 	mov [edx], ecx
 	add eax, 4
 	jmp kernRelocLoop
@@ -570,8 +458,8 @@ codeReadonlyData:
 kernelBytecode:
 	call processKernelReloc
 	mov eax, [VideoMemPtr]
+	push KernelSetIRQ
 	push KernelYieldEvent
-	push KernelSetupEvents
 	push eax
 	call kernelBytecodeStart
 	jmp kernelBytecodeEnd
