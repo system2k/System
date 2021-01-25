@@ -8,12 +8,6 @@
  * ====================================================
  */
 
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef unsigned int u_int32_t;
-typedef unsigned long long int uint64_t;
-typedef unsigned long long int u_int64_t;
-
 typedef union {
   double value;
   struct {
@@ -81,7 +75,7 @@ tiny   = 1.0e-300;
 double
 fabs(double x)
 {
-	u_int32_t high;
+	uint32_t high;
 	GET_HIGH_WORD(high,x);
 	SET_HIGH_WORD(x,high&0x7fffffff);
         return x;
@@ -91,7 +85,7 @@ double
 floor(double x)
 {
 	int32_t i0,i1,j0;
-	u_int32_t i,j;
+	uint32_t i,j;
 	EXTRACT_WORDS(i0,i1,x);
 	j0 = ((i0>>20)&0x7ff)-0x3ff;
 	if(j0<20) {
@@ -113,7 +107,7 @@ floor(double x)
 	    if(j0==0x400) return x+x;	/* inf or NaN */
 	    else return x;		/* x is integral */
 	} else {
-	    i = ((u_int32_t)(0xffffffff))>>(j0-20);
+	    i = ((uint32_t)(0xffffffff))>>(j0-20);
 	    if((i1&i)==0) return x;	/* x is integral */
 	    if(huge+x>0.0) { 		/* raise inexact flag */
 		if(i0<0) {
@@ -134,7 +128,7 @@ floor(double x)
 double
 copysign(double x, double y)
 {
-	u_int32_t hx,hy;
+	uint32_t hx,hy;
 	GET_HIGH_WORD(hx,x);
 	GET_HIGH_WORD(hy,y);
 	SET_HIGH_WORD(x,(hx&0x7fffffff)|(hy&0x80000000));
@@ -731,7 +725,7 @@ __ieee754_sqrt(double x)
 	double z;
 	int32_t sign = (int)0x80000000;
 	int32_t ix0,s0,q,m,t,i;
-	u_int32_t r,t1,s1,ix1,q1;
+	uint32_t r,t1,s1,ix1,q1;
 
 	EXTRACT_WORDS(ix0,ix1,x);
 
@@ -806,9 +800,9 @@ __ieee754_sqrt(double x)
 	    z = one-tiny; /* trigger inexact flag */
 	    if (z>=one) {
 	        z = one+tiny;
-	        if (q1==(u_int32_t)0xffffffff) { q1=0; q += 1;}
+	        if (q1==(uint32_t)0xffffffff) { q1=0; q += 1;}
 		else if (z>one) {
-		    if (q1==(u_int32_t)0xfffffffe) q+=1;
+		    if (q1==(uint32_t)0xfffffffe) q+=1;
 		    q1+=2; 
 		} else
 	            q1 += (q1&1);
@@ -870,7 +864,7 @@ double
 __ieee754_fmod(double x, double y)
 {
 	int32_t n,hx,hy,hz,ix,iy,sx,i;
-	u_int32_t lx,ly,lz;
+	uint32_t lx,ly,lz;
 
 	EXTRACT_WORDS(hx,lx,x);
 	EXTRACT_WORDS(hy,ly,y);
@@ -885,7 +879,7 @@ __ieee754_fmod(double x, double y)
 	if(hx<=hy) {
 	    if((hx<hy)||(lx<ly)) return x;	/* |x|<|y| return x */
 	    if(lx==ly) 
-		return Zero[(u_int32_t)sx>>31];	/* |x|=|y| return x*0*/
+		return Zero[(uint32_t)sx>>31];	/* |x|=|y| return x*0*/
 	}
 
     /* determine ix = ilogb(x) */
@@ -939,7 +933,7 @@ __ieee754_fmod(double x, double y)
 	    if(hz<0){hx = hx+hx+(lx>>31); lx = lx+lx;}
 	    else {
 	    	if((hz|lz)==0) 		/* return sign(x)*0 */
-		    return Zero[(u_int32_t)sx>>31];
+		    return Zero[(uint32_t)sx>>31];
 	    	hx = hz+hz+(lz>>31); lx = lz+lz;
 	    }
 	}
@@ -948,7 +942,7 @@ __ieee754_fmod(double x, double y)
 
     /* convert back to floating value and restore the sign */
 	if((hx|lx)==0) 			/* return sign(x)*0 */
-	    return Zero[(u_int32_t)sx>>31];
+	    return Zero[(uint32_t)sx>>31];
 	while(hx<0x00100000) {		/* normalize x */
 	    hx = hx+hx+(lx>>31); lx = lx+lx;
 	    iy -= 1;
@@ -959,7 +953,7 @@ __ieee754_fmod(double x, double y)
 	} else {		/* subnormal output */
 	    n = -1022 - iy;
 	    if(n<=20) {
-		lx = (lx>>n)|((u_int32_t)hx<<(32-n));
+		lx = (lx>>n)|((uint32_t)hx<<(32-n));
 		hx >>= n;
 	    } else if (n<=31) {
 		lx = (hx<<(32-n))|(lx>>n); hx = sx;

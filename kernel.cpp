@@ -1,11 +1,20 @@
 #define defaultScreenWidth 640
 #define defaultScreenHeight 480
 
+typedef unsigned char uint8_t;
+typedef signed char int8_t;
+typedef unsigned short int uint16_t;
+typedef signed short int int16_t;
+typedef unsigned int uint32_t;
+typedef signed int int32_t;
+typedef unsigned long long uint64_t;
+typedef signed long long int64_t;
+
 #include "math.cpp"
 
-unsigned char* frameBuffer;
-unsigned char* eventBuffer;
-unsigned short int eventBufferDispPos = 0;
+uint8_t* frameBuffer;
+uint8_t* eventBuffer;
+uint16_t eventBufferDispPos = 0;
 
 int screenWidth = defaultScreenWidth;
 int screenHeight = defaultScreenHeight;
@@ -16,34 +25,34 @@ int mouseY = defaultScreenHeight / 2;
 int curX = 0;
 int curY = 0;
 
-unsigned int memoryBase = 0x200000;
+uint32_t memoryBase = 0x200000;
 
 extern "C" {
-	unsigned char* malloc(unsigned int size) {
-		unsigned char* pos = (unsigned char*)memoryBase;
+	uint8_t* malloc(uint32_t size) {
+		uint8_t* pos = (uint8_t*)memoryBase;
 		memoryBase += size;
 		return pos;
 	}
 
-	void* memset(void* str, int c, unsigned int n) {
-		volatile unsigned char* dest = (unsigned char*)str;
+	void* memset(void* str, int c, uint32_t n) {
+		volatile uint8_t* dest = (uint8_t*)str;
 		for(int i = 0; i < n; i++) {
-			*dest = (unsigned char)c;
+			*dest = (uint8_t)c;
 			dest++;
 		}
 		return str;
 	}
 }
-/*
-void* operator new[](unsigned int size) {
+
+void* operator new[](uint32_t size) {
 	return malloc(size);
-}*/
+}
 
-unsigned char* bitmap;
+uint8_t* bitmap;
 int bitmapUpd = 0;
-unsigned char* bitmapUpdMap;
+uint8_t* bitmapUpdMap;
 
-unsigned char fontData[] = {
+uint8_t fontData[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7E, 0xC3, 0x81, 0xA5, 0x81, 0xBD, 0x99, 0xC3, 0x7E, 0x00, 0x00,
 	0x00, 0x7E, 0xFF, 0xFF, 0xDB, 0xFF, 0xC3, 0xE7, 0xFF, 0x7E, 0x00, 0x00, 0x00, 0x00, 0x22, 0x77, 0x7F, 0x7F, 0x7F, 0x3E, 0x1C, 0x08, 0x00, 0x00,
 	0x00, 0x08, 0x1C, 0x3E, 0x7F, 0x7F, 0x3E, 0x1C, 0x08, 0x00, 0x00, 0x00, 0x00, 0x18, 0x3C, 0x3C, 0xFF, 0xE7, 0xE7, 0x18, 0x18, 0x7E, 0x00, 0x00,
@@ -174,7 +183,7 @@ unsigned char fontData[] = {
 	0x00, 0x00, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 }; // 8 x 12
 
-unsigned char keyTable[] = {
+uint8_t keyTable[] = {
 	0x3F, 0x3F, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x2D, 0x3D, 0x08, 0x3F,
 	0x71, 0x77, 0x65, 0x72, 0x74, 0x79, 0x75, 0x69, 0x6F, 0x70, 0x5B, 0x5D, 0x0B, 0x3F, 0x61, 0x73,
 	0x64, 0x66, 0x67, 0x68, 0x6A, 0x6B, 0x6C, 0x3B, 0x27, 0x60, 0x3F, 0x5C, 0x7A, 0x78, 0x63, 0x76,
@@ -185,7 +194,7 @@ unsigned char keyTable[] = {
 	0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F
 };
 
-unsigned char keyTableShift[] = {
+uint8_t keyTableShift[] = {
 	0x3F, 0x3F, 0x21, 0x40, 0x23, 0x24, 0x25, 0x5E, 0x26, 0x2A, 0x28, 0x29, 0x5F, 0x2B, 0x08, 0x3F,
 	0x51, 0x57, 0x45, 0x52, 0x54, 0x59, 0x55, 0x49, 0x4F, 0x50, 0x7B, 0x7D, 0x0B, 0x3F, 0x41, 0x53,
 	0x44, 0x46, 0x47, 0x48, 0x4A, 0x4B, 0x4C, 0x3A, 0x22, 0x7E, 0x3F, 0x7C, 0x5A, 0x58, 0x43, 0x56,
@@ -196,7 +205,7 @@ unsigned char keyTableShift[] = {
 	0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F
 };
 
-unsigned short int ibmCP437Map[] = {
+uint16_t ibmCP437Map[] = {
 	0x0000, 0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022, 0x25D8, 0x25CB, 0x25D9, 0x2642, 0x2640, 0x266A, 0x266B, 0x263C,
 	0x25BA, 0x25C4, 0x2195, 0x203C, 0x00B6, 0x00A7, 0x25AC, 0x21A8, 0x2191, 0x2193, 0x2192, 0x2190, 0x221F, 0x2194, 0x25B2, 0x25BC,
 	0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
@@ -217,7 +226,7 @@ unsigned short int ibmCP437Map[] = {
 
 int mouseCursorImageWidth = 22;
 int mouseCursorImageHeight = 31;
-unsigned char mouseCursorImageData[] = {
+uint8_t mouseCursorImageData[] = {
 	0x4D, 0x31, 0x3B, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -344,7 +353,7 @@ unsigned char mouseCursorImageData[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-void drawImage(int sx, int sy, int width, int height, unsigned char data[]) {
+void drawImage(int sx, int sy, int width, int height, uint8_t data[]) {
 	for(int y = 0; y < height; y++) {
 		int ady = y + sy;
 		if(ady < 0 || ady >= screenHeight) continue;
@@ -353,9 +362,9 @@ void drawImage(int sx, int sy, int width, int height, unsigned char data[]) {
 			if(adx < 0 || adx >= screenWidth) continue;
 			int sIdx = (y * width + x) * 4;
 			int dIdx = (ady * screenWidth + adx) * 3;
-			unsigned char r = ((float)(data[sIdx + 0] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 2] * (255 - data[sIdx + 3]))) / 255;
-			unsigned char g = ((float)(data[sIdx + 1] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 1] * (255 - data[sIdx + 3]))) / 255;
-			unsigned char b = ((float)(data[sIdx + 2] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 0] * (255 - data[sIdx + 3]))) / 255;
+			uint8_t r = ((float)(data[sIdx + 0] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 2] * (255 - data[sIdx + 3]))) / 255;
+			uint8_t g = ((float)(data[sIdx + 1] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 1] * (255 - data[sIdx + 3]))) / 255;
+			uint8_t b = ((float)(data[sIdx + 2] * data[sIdx + 3]) + ((float)frameBuffer[dIdx + 0] * (255 - data[sIdx + 3]))) / 255;
 			frameBuffer[dIdx] = b;
 			frameBuffer[dIdx + 1] = g;
 			frameBuffer[dIdx + 2] = r;
@@ -372,9 +381,9 @@ void renderChar(int cx, int cy, int charCode) {
 	int idx = (sy * screenWidth + sx) * 3;
 	int tblIdx = charCode * 12;
 	for(int y = 0; y < 12; y++) {
-		unsigned char byt = fontData[tblIdx++];
+		uint8_t byt = fontData[tblIdx++];
 		for(int x = 0; x < 8; x++) {
-			unsigned char val = (byt >> x & 1);
+			uint8_t val = (byt >> x & 1);
 			val *= 255;
 			bitmap[x * 3 + idx] = val;
 			bitmap[x * 3 + idx + 1] = val;
@@ -388,14 +397,14 @@ void renderChar(int cx, int cy, int charCode) {
 	bitmapUpd = 1;
 }
 
-void renderCharExt(int cx, int cy, int charCode, int scaleW, int scaleH, unsigned char r, unsigned char g, unsigned char b) {
+void renderCharExt(int cx, int cy, int charCode, int scaleW, int scaleH, uint8_t r, uint8_t g, uint8_t b) {
 	int sx = cx;
 	int sy = cy;
 	int tblIdx = charCode * 12;
 	for(int y = 0; y < 12 * scaleH; y++) {
-		unsigned char byt = fontData[tblIdx + (y / scaleH)];
+		uint8_t byt = fontData[tblIdx + (y / scaleH)];
 		for(int x = 0; x < 8 * scaleW; x++) {
-			unsigned char val = (byt >> (x / scaleW) & 1);
+			uint8_t val = (byt >> (x / scaleW) & 1);
 			if(val) {
 				int idx = ((sy + y) * screenWidth + (sx + x)) * 3;
 				bitmap[idx] = b;
@@ -410,12 +419,12 @@ void renderCharExt(int cx, int cy, int charCode, int scaleW, int scaleH, unsigne
 	bitmapUpd = 1;
 }
 
-void renderString(const char text[], int offX, int offY, int scaleW, int scaleH, unsigned char r, unsigned char g, unsigned char b) {
+void renderString(const char text[], int offX, int offY, int scaleW, int scaleH, uint8_t r, uint8_t g, uint8_t b) {
 	int pos = 0;
 	int cx = 0;
 	int cy = 0;
 	while(text[pos]) {
-		unsigned char code = text[pos++];
+		uint8_t code = text[pos++];
 		if(code == '\n') {
 			cx = 0;
 			cy++;
@@ -429,7 +438,7 @@ void renderString(const char text[], int offX, int offY, int scaleW, int scaleH,
 void printText(const char text[]) {
 	int pos = 0;
 	while(text[pos]) {
-		unsigned char code = text[pos++];
+		uint8_t code = text[pos++];
 		if(code == '\n') {
 			curX = 0;
 			curY++;
@@ -451,7 +460,7 @@ void printInteger(int i) {
 	test[10] = '\n';
 	test[11] = 0;
 	
-	unsigned int val = i;
+	uint32_t val = i;
 	for(int x = 0; x < 10; x++) {
 		test[9 - x] = '0' + (val % 10);
 		val /= 10;
@@ -463,9 +472,9 @@ void fillBackground() {
 	int ptr = 0;
 	for(int y = 0; y < screenHeight; y++) {
 		for(int x = 0; x < screenWidth; x++) {
-			unsigned char r = 0;
-			unsigned char g = 162;
-			unsigned char b = 232;
+			uint8_t r = 0;
+			uint8_t g = 162;
+			uint8_t b = 232;
 			if(((y + (x / 20)) % 32 == 0) || ((x - (y / 20)) % 32 == 0)) {
 				r = 0;
 				g = 0;
@@ -479,7 +488,7 @@ void fillBackground() {
 	bitmapUpd = 1;
 }
 
-void fillRectangle(int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b) {
+void fillRectangle(int x1, int y1, int x2, int y2, uint8_t r, uint8_t g, uint8_t b) {
 	// 640x480
 	for(int y = y1; y <= y2; y++) {
 		for(int x = x1; x <= x2; x++) {
@@ -495,61 +504,61 @@ void fillRectangle(int x1, int y1, int x2, int y2, unsigned char r, unsigned cha
 	bitmapUpd = 1;
 }
 
-void io_out8(unsigned short port, unsigned char val) {
+void io_out8(uint16_t port, uint8_t val) {
 	__asm__ __volatile__ (
 		"outb %0, %1" ::"a"(val), "Nd"(port)
 	);
 }
 
-void io_out16(unsigned short port, unsigned short val) {
+void io_out16(uint16_t port, uint16_t val) {
 	__asm__ __volatile__ (
 		"outw %0, %1" ::"a"(val), "Nd"(port)
 	);
 }
 
-void io_out32(unsigned short port, unsigned int val) {
+void io_out32(uint16_t port, uint32_t val) {
 	__asm__ __volatile__ (
 		"outl %0, %1" ::"a"(val), "Nd"(port)
 	);
 }
 
-unsigned char io_in8(unsigned short port) {
-	unsigned char val = 0;
+uint8_t io_in8(uint16_t port) {
+	uint8_t val = 0;
 	__asm__ __volatile__ (
 		"inb %1, %0" :"=a"(val) :"Nd"(port)
 	);
 	return val;
 }
 
-unsigned short io_in16(unsigned short port) {
-	unsigned short val = 0;
+uint16_t io_in16(uint16_t port) {
+	uint16_t val = 0;
 	__asm__ __volatile__ (
 		"inw %1, %0" :"=a"(val) :"Nd"(port)
 	);
 	return val;
 }
 
-unsigned int io_in32(unsigned short port) {
-	unsigned int val = 0;
+uint32_t io_in32(uint16_t port) {
+	uint32_t val = 0;
 	__asm__ __volatile__ (
 		"inl %1, %0" :"=a"(val) :"Nd"(port)
 	);
 	return val;
 }
 
-void ps2_wait(unsigned char dl) {
+void ps2_wait(uint8_t dl) {
 	for(int i = 0; i < 1000; i++) {
-		unsigned char inv = io_in8(0x64);
+		uint8_t inv = io_in8(0x64);
 		if(inv & dl) return;
 	}
 }
 
-unsigned char ps2_read() {
+uint8_t ps2_read() {
 	ps2_wait(1);
 	return io_in8(0x60);
 }
 
-void ps2_write(unsigned char val) {
+void ps2_write(uint8_t val) {
 	ps2_wait(2);
 	io_out8(0x64, 0xD4);
 	ps2_wait(2);
@@ -570,7 +579,7 @@ void ps2_init() {
 	io_out8(0x64, 0x20); // initialize?
 	ps2_wait(1);
 	
-	unsigned char inp1 = io_in8(0x60); // retrieve configuration byte from buffer?
+	uint8_t inp1 = io_in8(0x60); // retrieve configuration byte from buffer?
 	inp1 |= (1 << 1); // set bit 1 (second ps/2 port int?)
 	inp1 &= ~(1 << 5); // clear bit 5 (second ps/2 port clock?)
 	
@@ -591,7 +600,7 @@ void ps2_init() {
 	ps2_write(0xF3);
 	ps2_write(80);
 	ps2_write(0xF2);
-	unsigned char inp2 = ps2_read();
+	uint8_t inp2 = ps2_read();
 	packetsize = 3;
 	if(inp2) {
 		packetsize = 4;
@@ -615,11 +624,11 @@ void ps2_init() {
 }
 
 void renderBitmapFrame() {
-	unsigned int ptrPos = 0;
+	uint32_t ptrPos = 0;
 	for(int x = 0; x < 60; x++) {
-		unsigned char upd = bitmapUpdMap[x];
+		uint8_t upd = bitmapUpdMap[x];
 		for(int z = 0; z < 8; z++) {
-			unsigned char bit = (upd >> z) & 1;
+			uint8_t bit = (upd >> z) & 1;
 			if(bit) {
 				for(int s = 0; s < screenWidth * 3; s++) {
 					frameBuffer[ptrPos] = bitmap[ptrPos++];
@@ -639,9 +648,8 @@ void rerenderFrame() {
 	renderBitmapFrame();
 }
 
-unsigned char ps2MousePacket[] = {0, 0, 0, 0};
+uint8_t ps2MousePacket[] = {0, 0, 0, 0};
 int ps2MouseBufferPos = 0;
-int ps2IsInit = 0;
 
 void IRQ_0() {
 	eventBuffer[eventBufferDispPos++] = 0x11;
@@ -710,20 +718,15 @@ void IRQ_11() {
 }
 
 void IRQ_12() {
-	if(!ps2IsInit) {
-		io_out8(0xA0, 0x20);
-		io_out8(0x20, 0x20);
-		return;
-	}
 	ps2MouseBufferPos = 0;
 	for(int i = 0; i < 4; i++) {
-		unsigned char stat = io_in8(0x64);
+		uint8_t stat = io_in8(0x64);
 		if((stat & 0x20) != 0x20 || (stat & 0x01) == 0x00) {
 			io_out8(0xA0, 0x20);
 			io_out8(0x20, 0x20);
 			return;
 		}
-		unsigned char buffer = io_in8(0x60);
+		uint8_t buffer = io_in8(0x60);
 		ps2MousePacket[ps2MouseBufferPos] = buffer;
 		ps2MouseBufferPos++;
 	}
@@ -756,11 +759,18 @@ void IRQ_15() {
 	return;
 }
 
-int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(void(*[])())) {
+void KernelShutdown() {
+	memset(bitmap, 0, screenWidth * screenHeight * 3);
+	renderString("It's now safe to turn off", 25, 150, 3, 4, 225, 133, 34);
+	renderString("your computer.", 150, 200, 3, 4, 225, 133, 34);
+	rerenderFrame();
+}
+
+int KernelMain(uint8_t* fb, void(*yieldEvent)(), void(*enableInterrupts)(void(*[])())) {
 	frameBuffer = fb;
 
-	bitmap = malloc(640 * 480 * 3);
-	bitmapUpdMap = malloc(480 / 8); // 60
+	bitmap = new uint8_t[640 * 480 * 3];
+	bitmapUpdMap = new uint8_t[480 / 8]; // 60
 	for(int x = 0; x < 60; x++) {
 		bitmapUpdMap[x] = 0b11111111;
 	}
@@ -772,8 +782,8 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 		IRQ_12, IRQ_13, IRQ_14, IRQ_15
 	};
 	
-	eventBuffer = malloc(65536);
-	unsigned short eventBufferPos = 0;
+	eventBuffer = new uint8_t[65536];
+	uint16_t eventBufferPos = 0;
 
 	for(int i = 0; i < 65536; i++) {
 		eventBuffer[i] = 0;
@@ -782,7 +792,6 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 	enableInterrupts(IRQFuncs);
 	
 	ps2_init();
-	ps2IsInit = 1;
 	
 	fillBackground();
 	bitmapUpd = 1;
@@ -805,12 +814,12 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 	printText("Right click to shut down\n");
 	printText("Scroll to switch color\n");
 	
-	unsigned char demoR = 0;
-	unsigned char demoG = 255;
-	unsigned char demoB = 0;
+	uint8_t demoR = 0;
+	uint8_t demoG = 255;
+	uint8_t demoB = 0;
 	int paletteIndex = 0;
 	int paletteSize = 8;
-	unsigned char palette[][3] = {
+	uint8_t palette[][3] = {
 		{0, 255, 0},
 		{0, 0, 0},
 		{0, 255, 255},
@@ -822,25 +831,25 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 	};
 	rerenderFrame();
 
-	while(1) {
+	while(true) {
 		yieldEvent();
-		int ignoreFrameRenderReq = 0;
-		int ignoreScrollVal = 0;
-		int terminate = 0;
+		bool ignoreFrameRenderReq = false;
+		bool ignoreScrollVal = false;
+		bool terminate = false;
 		
 		for(int i = 0; i < 65536; i++) {
-			unsigned char stat = eventBuffer[eventBufferPos];
+			uint8_t stat = eventBuffer[eventBufferPos];
 			if(stat == 0x10) { // cursor update
 				// y overflow, x overflow, y sign, x sign, 1, middle btn, right btn, left btn
-				unsigned char statByte = eventBuffer[eventBufferPos + 1];
-				signed char deltaX = eventBuffer[eventBufferPos + 2];
-				signed char deltaY = eventBuffer[eventBufferPos + 3];
-				signed char deltaZ = eventBuffer[eventBufferPos + 4];
+				uint8_t statByte = eventBuffer[eventBufferPos + 1];
+				int8_t deltaX = eventBuffer[eventBufferPos + 2];
+				int8_t deltaY = eventBuffer[eventBufferPos + 3];
+				int8_t deltaZ = eventBuffer[eventBufferPos + 4];
 				
 				if(deltaZ > 7) deltaZ -= 16;
 				
 				if(statByte & 0b00000010) {
-					terminate = 1;
+					terminate = true;
 					break;
 				}
 				
@@ -853,7 +862,7 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 				if(mouseY > screenHeight - 1) mouseY = screenHeight - 1;
 				
 				if(deltaZ && !ignoreScrollVal) {
-					ignoreScrollVal = 1;
+					ignoreScrollVal = true;
 					if(deltaZ > 0) {
 						paletteIndex++;
 						paletteIndex %= paletteSize;
@@ -888,7 +897,7 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 					bitmapUpd = 0;
 					renderBitmapFrame();
 					drawImage(mouseX, mouseY, mouseCursorImageWidth, mouseCursorImageHeight, mouseCursorImageData);
-					ignoreFrameRenderReq = 1;
+					ignoreFrameRenderReq = true;
 				}
 				eventBuffer[eventBufferPos++] = 0;
 				continue;
@@ -898,10 +907,7 @@ int KernelMain(unsigned char* fb, void(*yieldEvent)(), void(*enableInterrupts)(v
 		if(terminate) break;
 	}
 	
-	memset(bitmap, 0, screenWidth * screenHeight * 3);
-	renderString("It's now safe to turn off", 25, 150, 3, 4, 225, 133, 34);
-	renderString("your computer.", 150, 200, 3, 4, 225, 133, 34);
-	rerenderFrame();
+	KernelShutdown();
 	
 	return 0;
 }
