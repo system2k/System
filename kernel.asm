@@ -6,19 +6,33 @@ BootSector:
 	mov dl, 0		; drive number
 	int 0x13		; call bios disk service
 
+	; load approx 50 KB from the drive
+	
+	; load first half of kernel
 	mov ah, 0x02	; command to read sectors into memory
-	mov al, 100		; read sectors
+	mov al, 50		; read 50 sectors
 	mov dl, 0x80	; drive number
 	mov ch, 0		; cylinder number
 	mov dh, 0		; head number
 	mov cl, 2		; sector start number
 	mov bx, sys_stage2	; load sector to this address
 	int 0x13
+	
+	; load second half of kernel
+	mov ah, 0x02
+	mov al, 50
+	mov dl, 0x80
+	mov ch, 0
+	mov dh, 0
+	mov cl, 2 + 50
+	mov bx, sys_stage2 + (512 * 50)
+	int 0x13
 
 	jmp 0x0000:sys_stage2
 
-	times ((0x200 - 2) - ($ - $$)) db 0x00	; pad file to 510
-	dw 0xAA55					; add 2 magic bytes
+	; pad bootsector and add magic bytes
+	times ((0x200 - 2) - ($ - $$)) db 0x00
+	dw 0xAA55
 
 
 sys_stage2:
@@ -71,19 +85,21 @@ InitializeGraphics:
 	mov bx, 0x0112 ; 640x480x24
 	int 0x10
 	
-	
 enterProtMode:
 	cli
 	lgdt [gdt_descriptor]
 	mov eax, cr0
-	or eax, 0b00000001
+	or eax, 0b00000001 ; set "protected mode enable" flag
 	mov cr0, eax
-	jmp CODE_SEG:BeginKernel32
+	jmp CODE_SEG:BeginKernel32 ; set CS register and jump to kernel
 	hlt
 	ret
 	
 [bits 32]
-	
+
+; set up the Global Descriptor Table
+; the GDT determines the current ring level and permission levels for memory ranges,
+; such as read, write, and code execute.
 gdt_start:
 gdt_null:
 	dd 0x0
@@ -478,7 +494,6 @@ EndKernel:
 EndKernelLoop:
 	hlt
 	jmp EndKernelLoop
-
 
 
 

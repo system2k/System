@@ -782,15 +782,11 @@ int KernelMain(uint8_t* fb, void(*yieldEvent)(), void(*enableInterrupts)(void(*[
 		IRQ_12, IRQ_13, IRQ_14, IRQ_15
 	};
 	
-	eventBuffer = new uint8_t[65536];
-	uint16_t eventBufferPos = 0;
-
-	for(int i = 0; i < 65536; i++) {
-		eventBuffer[i] = 0;
-	}
-	
 	enableInterrupts(IRQFuncs);
 	
+	eventBuffer = new uint8_t[65536];
+	uint16_t eventBufferPos = 0;
+	memset(eventBuffer, 0, 65536);
 	ps2_init();
 	
 	fillBackground();
