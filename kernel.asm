@@ -352,6 +352,7 @@ beginIDT:
 reloc_memBase: dd 0x00100000
 reloc_memBss: dd 0x00000000
 reloc_memGlobVar: dd 0x00000000
+reloc_kernelEntry: dd 0x00000000
 
 ; Initialize memory region with zeros
 ; ebx: starting addr
@@ -385,6 +386,8 @@ kernRelocLoop:
 	je kreloc_bssSize
 	cmp bl, 7 ; globVarSize
 	je kreloc_globVarSize
+	cmp bl, 8 ; entry
+	je kreloc_entry
 	jmp kernRelocStop
 kreloc_data:
 	mov ecx, [eax]
@@ -431,7 +434,6 @@ kreloc_text:
 	mov edx, ecx
 	mov ecx, [ecx]
 	add ecx, kernelBytecodeStart
-	add ecx, 5 ; initial jmp
 	mov [edx], ecx
 	add eax, 4
 	jmp kernRelocLoop
@@ -460,6 +462,11 @@ kreloc_globVarSize:
 	call memRegion_init
 	add eax, 4
 	jmp kernRelocLoop
+kreloc_entry:
+	mov ecx, [eax]
+	mov [reloc_kernelEntry], ecx
+	add eax, 4
+	jmp kernRelocLoop
 kernRelocStop:
 	ret
 
@@ -477,7 +484,9 @@ kernelBytecode:
 	push KernelSetIRQ
 	push KernelYieldEvent
 	push eax
-	call kernelBytecodeStart
+	mov eax, kernelBytecodeStart
+	add eax, [reloc_kernelEntry]
+	call eax
 	jmp kernelBytecodeEnd
 kernelBytecodeStart:
 	incbin "./build/exec_code.bin"

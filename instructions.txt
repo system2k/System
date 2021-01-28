@@ -1,13 +1,9 @@
-1. run c1.bat (compile)
-2. run c2.bat (post-compile)
-3. The OS is now compiled and ready to run
-
-
-
 requirements:
-	GNU compiler (gcc/g++)
-	node
+	g++
 	nasm
 	objcopy
 	objdump
 	qemu
+
+compilation:
+	c1.bat, c2.bat, run.bat
