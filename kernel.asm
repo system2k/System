@@ -2,32 +2,30 @@
 	org 0x7C00
 
 BootSector:
-	mov ah, 0x00	; reset disk
-	mov dl, 0		; drive number
-	int 0x13		; call bios disk service
-
-	; load approx 50 KB from the drive
+	jmp beginBoot
+	times (0x100 - ($ - $$)) db 0x00
+drvNum: db 0x00
+beginBoot:
+	; the bios provides boot drive on dl, preserve it
+	mov [drvNum], dl
 	
-	; load first half of kernel
-	mov ah, 0x02	; command to read sectors into memory
-	mov al, 50		; read 50 sectors
-	mov dl, 0x80	; drive number
-	mov ch, 0		; cylinder number
-	mov dh, 0		; head number
-	mov cl, 2		; sector start number
-	mov bx, sys_stage2	; load sector to this address
+	; set segment offset to give us more address space
+	mov ax, 0x7E0
+	mov es, ax
+	
+	mov ah, 0x02		; command to read sectors into memory
+	mov al, 120			; read 120 sectors
+	mov dl, [drvNum]	; drive number
+	mov ch, 0			; cylinder number
+	mov dh, 0			; head number
+	mov cl, 2
+	mov bx, 0			; load sector to this address
 	int 0x13
 	
-	; load second half of kernel
-	mov ah, 0x02
-	mov al, 50
-	mov dl, 0x80
-	mov ch, 0
-	mov dh, 0
-	mov cl, 2 + 50
-	mov bx, sys_stage2 + (512 * 50)
-	int 0x13
-
+	; reset segment
+	mov ax, 0x0000
+	mov es, ax
+	
 	jmp 0x0000:sys_stage2
 
 	; pad bootsector and add magic bytes
@@ -151,12 +149,14 @@ BeginKernel32:
 	;increments by 4 on protected mode, 2 on real mode
 
 	; program the timer interrupt to about 60 ticks per second
-	mov ax, 1193181 / 60
+	mov ax, 1193181 / 45
 	out 0x40, al
 	mov al, ah
 	out 0x40, al
 
 	; remap PIC
+	; move interrupts from 0-15 to 32-47
+	; exceptions are now at 0-15
 	mov al, 0x11
 	out 0x20, al
 	mov al, 0x11
@@ -194,6 +194,23 @@ BeginKernel32:
 	mov [6 + IDT_table + %2 * 8], ax ;; offset_higherbits
 %endmacro
 
+	InterruptDesc addr_exception, 0
+	InterruptDesc addr_exception, 1
+	InterruptDesc addr_exception, 2
+	InterruptDesc addr_exception, 3
+	InterruptDesc addr_exception, 4
+	InterruptDesc addr_exception, 5
+	InterruptDesc addr_exception, 6
+	InterruptDesc addr_exception, 7
+	InterruptDesc addr_exception, 8
+	InterruptDesc addr_exception, 9
+	InterruptDesc addr_exception, 10
+	InterruptDesc addr_exception, 11
+	InterruptDesc addr_exception, 12
+	InterruptDesc addr_exception, 13
+	InterruptDesc addr_exception, 14
+	InterruptDesc addr_exception, 15
+
 	InterruptDesc addr_irq0, 32 ; timer interrupt
 	InterruptDesc addr_irq1, 33 ; keyboard
 	InterruptDesc addr_irq2, 34
@@ -228,6 +245,13 @@ KernelSetIRQ:
 	sti
 	ret
 
+; *** Exceptions ***
+; for now, just make all of them shut down the system
+addr_exception:
+	call blankScreen
+	jmp EndKernelLoop
+
+; *** Interrupts ***
 addr_irq0:
 	pusha
 	mov eax, [KernIntTablePtr]
@@ -348,6 +372,20 @@ beginIDT:
 	lidt [eax]
 	
 	jmp BeginKernel
+	
+	
+blankScreen:
+	mov eax, [VideoMemPtr]
+	mov ecx, 0
+	mov bl, 255
+blankScreenLoop:
+	mov [eax], bl
+	inc eax
+	inc ecx
+	cmp ecx, 640 * 480 * 3
+	jl blankScreenLoop
+	ret
+	
 
 reloc_memBase: dd 0x00100000
 reloc_memBss: dd 0x00000000

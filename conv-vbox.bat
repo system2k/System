@@ -1,0 +1,1 @@
+vboxmanage convertdd build/system.img build/system.vdi

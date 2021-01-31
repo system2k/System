@@ -566,8 +566,11 @@ void ps2_write(uint8_t val) {
 	ps2_read();
 }
 
+uint8_t ps2MousePacket[] = {0, 0, 0, 0};
+int ps2MouseBufferPos = 0;
+int ps2MousePacketSize = 0;
+
 void ps2_init() {
-	int packetsize = 0;
 	int samplerate = 200;
 	int resolution = 1;
 	
@@ -601,9 +604,9 @@ void ps2_init() {
 	ps2_write(80);
 	ps2_write(0xF2);
 	uint8_t inp2 = ps2_read();
-	packetsize = 3;
+	ps2MousePacketSize = 3;
 	if(inp2) {
-		packetsize = 4;
+		ps2MousePacketSize = 4;
 	}
 	// enable 4th and 5th buttons
 	ps2_write(0xF3);
@@ -647,9 +650,6 @@ void rerenderFrame() {
 	}
 	renderBitmapFrame();
 }
-
-uint8_t ps2MousePacket[] = {0, 0, 0, 0};
-int ps2MouseBufferPos = 0;
 
 void IRQ_0() {
 	eventBuffer[eventBufferDispPos++] = 0x11;
@@ -719,7 +719,7 @@ void IRQ_11() {
 
 void IRQ_12() {
 	ps2MouseBufferPos = 0;
-	for(int i = 0; i < 4; i++) {
+	for(int i = 0; i < ps2MousePacketSize; i++) {
 		uint8_t stat = io_in8(0x64);
 		if((stat & 0x20) != 0x20 || (stat & 0x01) == 0x00) {
 			io_out8(0xA0, 0x20);
@@ -734,7 +734,11 @@ void IRQ_12() {
 	eventBuffer[eventBufferDispPos++] = ps2MousePacket[0];
 	eventBuffer[eventBufferDispPos++] = ps2MousePacket[1];
 	eventBuffer[eventBufferDispPos++] = ps2MousePacket[2];
-	eventBuffer[eventBufferDispPos++] = ps2MousePacket[3];
+	if(ps2MousePacketSize >= 4) {
+		eventBuffer[eventBufferDispPos++] = ps2MousePacket[3];
+	} else {
+		eventBuffer[eventBufferDispPos++] = 0;
+	}
 	
 	io_out8(0xA0, 0x20);
 	io_out8(0x20, 0x20);
@@ -789,23 +793,12 @@ int KernelMain(uint8_t* fb, void(*yieldEvent)(), void(*enableInterrupts)(void(*[
 	memset(eventBuffer, 0, 65536);
 	ps2_init();
 	
-	fillBackground();
+	fillRectangle(0, 0, screenWidth - 1, screenHeight - 1, 0, 0, 255);
 	bitmapUpd = 1;
 	
 	int lastMouseX = -1;
 	int lastMouseY = -1;
 	int count = 0;
-	
-	for(int y = 0; y < 16; y++) {
-		for(int x = 0; x < 16; x++) {
-			renderChar(x + 30, y + 20, y * 16 + x);
-		}
-	}
-	
-	for(int i = 0; i < 320; i++) {
-		float val = (sin((double)i / 5) + 1) * 125;
-		fillRectangle(i, 80, i, 80 + 3, val, val, val);
-	}
 	
 	printText("Right click to shut down\n");
 	printText("Scroll to switch color\n");
@@ -826,12 +819,13 @@ int KernelMain(uint8_t* fb, void(*yieldEvent)(), void(*enableInterrupts)(void(*[
 		{255, 255, 255}
 	};
 	rerenderFrame();
-
+	
 	while(true) {
 		yieldEvent();
 		bool ignoreFrameRenderReq = false;
 		bool ignoreScrollVal = false;
 		bool terminate = false;
+		
 		
 		for(int i = 0; i < 65536; i++) {
 			uint8_t stat = eventBuffer[eventBufferPos];
@@ -844,10 +838,10 @@ int KernelMain(uint8_t* fb, void(*yieldEvent)(), void(*enableInterrupts)(void(*[
 				
 				if(deltaZ > 7) deltaZ -= 16;
 				
-				if(statByte & 0b00000010) {
+				/*if(statByte & 0b00000010) {
 					terminate = true;
 					break;
-				}
+				}*/
 				
 				mouseX += deltaX;
 				mouseY -= deltaY;
