@@ -14,7 +14,7 @@ beginBoot:
 	mov es, ax
 	
 	mov ah, 0x02		; command to read sectors into memory
-	mov al, 120			; read 120 sectors
+	mov al, 128			; read 128 sectors
 	mov dl, [drvNum]	; drive number
 	mov ch, 0			; cylinder number
 	mov dh, 0			; head number
@@ -149,7 +149,7 @@ BeginKernel32:
 	;increments by 4 on protected mode, 2 on real mode
 
 	; program the timer interrupt to about 60 ticks per second
-	mov ax, 1193181 / 45
+	mov ax, 1193181 / 60
 	out 0x40, al
 	mov al, ah
 	out 0x40, al
@@ -249,7 +249,7 @@ KernelSetIRQ:
 ; for now, just make all of them shut down the system
 addr_exception:
 	call blankScreen
-	jmp EndKernelLoop
+	jmp EndKernel
 
 ; *** Interrupts ***
 addr_irq0:
